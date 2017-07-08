@@ -8,3 +8,8 @@ print("jest git?")
 print("jest git!")
 
 PRINT("co sie dzieje")
+
+
+
+
+print("pracuję! Nic nie rób!")
