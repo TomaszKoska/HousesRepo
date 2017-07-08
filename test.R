@@ -7,9 +7,13 @@ print("jest git?")
 
 print("jest git!")
 
-PRINT("co sie dzieje")
+print("co sie dzieje")
 
 
 
 
 print("pracuję! Nic nie rób!")
+
+cok<-function(){
+  print("co sie dzieje")
+}
