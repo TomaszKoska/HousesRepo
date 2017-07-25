@@ -272,9 +272,12 @@ impCustomPreparation <- function(fo){
 fo <- buildForecastingObject("C:\\Users\\Tomek\\Desktop\\kaggle\\houses\\raw\\train.csv",
                              "C:\\Users\\Tomek\\Desktop\\kaggle\\houses\\raw\\test.csv","SalePrice","")
 
+
+fo$train$LotArea<-NULL
+
 head(fo$train)
 
-diagnose(fo)
+diagnose(fo,minObs =100)
 
 
 fo <- impCustomPreparation(fo)
@@ -284,11 +287,15 @@ diagnose(fo)
 # fo<-redRemoveSelected(fo,namesToRemove = c("PoolQC","Fence","MiscFeature"))
 # fo <- impCaretDefault(fo=fo,forbiddenVariables = c("Id"),trainControl = trainControl(method="repeatedcv", number=2, repeats=1,verboseIter = T))
 
-# fo <- outNumericStdDev(fo,2,ignoredVariables = c("Id"),maxRemovedPercentage = 0.05)
-# diagnose(fo)
+ fo <- outNumericStdDev(fo,howManyDevsAway = 3,ignoredVariables = c("Id"),maxRemovedPercentage = 0.05)
+ diagnose(fo)
 
-fo <- traZbijacz(fo,50)
+fo <- traZbijacz(fo,minCount = 100)
 diagnose(fo)
+
+
+
+fo2<-traNumericAutoTransformer(fo,forbiddenVariables = c("Id"),functionsToTest = c("log","square"))
 
 
 fo <- traNormalizeNumerics(fo,c("Id"))
@@ -298,4 +305,23 @@ diagnose(fo)
 fo<- redRemoveSelected(fo,c("LotFrontage"))
 diagnose(fo)
 
-fo2<-traNumericAutoTransformer(fo,forbiddenVariables = c("Id"),functionsToTest = c("log","square"))
+fo <- redRemoveZeroVar(fo)
+
+
+library(caret)
+#ridge
+modelName <- "ridge"
+info <- getModelInfo(modelName)
+
+train_control <- trainControl(method="repeatedcv", number=10, repeats=1,verboseIter = TRUE)
+grid <- expand.grid(lambda=seq(0.2,0.5,0.1))
+model <-  train(SalePrice ~ ., data = fo$train, method = modelName,trControl=train_control,tuneGrid=grid)
+# model.merged <-  train(SalePrice ~ ., data = df.merged,method = modelName,trControl=train_control)
+
+
+model$bestTune
+result <- predict(model, newdata = fo$forecast)
+fullPredict(fo,model)
+
+
+

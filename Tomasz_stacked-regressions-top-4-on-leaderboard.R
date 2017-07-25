@@ -39,7 +39,7 @@ impCustomPreparation <- function(fo){
   # df$KitchenAbvGr <- as.factor(df$KitchenAbvGr)
   # df$TotRmsAbvGrd <- as.factor(df$TotRmsAbvGrd)
   # df$Fireplaces <- as.factor(df$Fireplaces)
-  # df$GarageCars <- as.factor(df$GarageCars)
+  df$GarageCars <- as.numeric(df$GarageCars)
   df$MoSold <-as.factor(df$MoSold)
   df$MoSold <-as.factor(df$YrSold)
   levels(df$MoSold) <- paste(rep("month",nrow(df)),levels(df$MoSold),sep="")
@@ -251,7 +251,7 @@ impCustomPreparation <- function(fo){
   fo$description <- append(fo$description,"And then we made custom changes!")
   
   
-  fo$train <- fo$trainFull[fo$trainFull$GrLivArea<4000 & fo$trainFull$SalePrice<300000,]
+  fo$train <- fo$trainFull[exp(fo$trainFull$GrLivArea)>=4000 & exp(fo$trainFull$SalePrice)<=300000,]
   
   
   fo
@@ -286,8 +286,8 @@ diagnose(fo,minObs =5)
  # fo <- outNumericStdDev(fo,howManyDevsAway = 3,ignoredVariables = c("Id"),maxRemovedPercentage = 0.05)
  # diagnose(fo)
 
-# fo <- traZbijacz(fo,minCount = 100)
-# diagnose(fo)
+fo <- traZbijacz(fo,minCount = 20)
+diagnose(fo,5)
 
 
 
@@ -302,25 +302,102 @@ diagnose(fo)
 # diagnose(fo)
 
 fo <- redRemoveZeroVar(fo)
-diagnose(fo)
-
+diagnose(fo,5)
 
 
 
 library(caret)
+
+#lasso
+model<-NULL
+modelName <- "lasso"
+info <- getModelInfo(modelName)$lasso$grid
+
+
+
+train_control <- trainControl(method="repeatedcv", number=5, repeats=3,verboseIter = TRUE)
+# grid <- expand.grid(fraction=seq(0.005, 0.35, 0.0001))
+grid <- expand.grid(fraction=0.9995)
+
+
+model <-  train(SalePrice ~ ., data = fo$train, method = modelName,trControl=train_control,tuneGrid=grid)
+# model <-  train(SalePrice ~ ., data = fo$train,method = modelName,trControl=train_control)
+
+
+model$bestTune
+result <- predict(model, newdata = fo$forecast)
+fullPredictExp(fo = fo,caretModel  = model , modelFile = paste(c("outputs\\",modelName,"_",format(Sys.time(), "%Y%m%d%H%M%S"),".RData"),collapse = ""),forecastOutputFile = paste(c("outputs\\forecast_",modelName,"_",format(Sys.time(), "%Y%m%d%H%M%S"),".csv"),collapse = ""), fullOutputFile= paste(c("outputs\\full_",modelName,"_",format(Sys.time(), "%Y%m%d%H%M%S"),".csv"),collapse = ""))
+
+getTrainPerf(model)
+
+
+#elasticNet
+model<-NULL
+modelName <- "enet"
+info <- getModelInfo(modelName)$lasso$grid
+
+
+
+train_control <- trainControl(method="repeatedcv", number=5, repeats=3,verboseIter = TRUE)
+grid <- expand.grid(fraction =  seq(0, 0.5, length = 6), lambda = seq(0, 100))
+# grid <- expand.grid(fraction=0.9995)
+
+
+model <-  train(SalePrice ~ ., data = fo$train, method = modelName,trControl=train_control,tuneGrid=grid)
+# model <-  train(SalePrice ~ ., data = fo$train,method = modelName,trControl=train_control)
+
+
+model$bestTune
+result <- predict(model, newdata = fo$forecast)
+fullPredictExp(fo = fo,caretModel  = model , modelFile = paste(c("outputs\\",modelName,"_",format(Sys.time(), "%Y%m%d%H%M%S"),".RData"),collapse = ""),forecastOutputFile = paste(c("outputs\\forecast_",modelName,"_",format(Sys.time(), "%Y%m%d%H%M%S"),".csv"),collapse = ""), fullOutputFile= paste(c("outputs\\full_",modelName,"_",format(Sys.time(), "%Y%m%d%H%M%S"),".csv"),collapse = ""))
+
+
+
+
+
 #ridge
 modelName <- "ridge"
 info <- getModelInfo(modelName)
 
-train_control <- trainControl(method="repeatedcv", number=10, repeats=1,verboseIter = TRUE)
-grid <- expand.grid(lambda=seq(0.2,0.5,0.1))
+train_control <- trainControl(method="repeatedcv", number=5, repeats=3,verboseIter = TRUE)
+# grid <- expand.grid(lambda=seq(0.2,0.7,0.1))
+grid <- expand.grid(lambda=c(0.5))
+
 model <-  train(SalePrice ~ ., data = fo$train, method = modelName,trControl=train_control,tuneGrid=grid)
 # model.merged <-  train(SalePrice ~ ., data = df.merged,method = modelName,trControl=train_control)
 
 
 model$bestTune
 result <- predict(model, newdata = fo$forecast)
-fullPredict(fo,model)
+fullPredictExp(fo = fo,caretModel  = model , modelFile = paste(c("outputs\\",modelName,"_",format(Sys.time(), "%Y%m%d%H%M%S"),".RData"),collapse = ""),forecastOutputFile = paste(c("outputs\\forecast_",modelName,"_",format(Sys.time(), "%Y%m%d%H%M%S"),".csv"),collapse = ""), fullOutputFile= paste(c("outputs\\full_",modelName,"_",format(Sys.time(), "%Y%m%d%H%M%S"),".csv"),collapse = ""))
+
+
+
+#xgb
+modelName <- "xgbTree"
+info <- getModelInfo(modelName)
+
+train_control <- trainControl(method="repeatedcv", number=5, repeats=3,verboseIter = TRUE)
+grid <- expand.grid(
+  nrounds=c(50,100,150,200,250,300),
+  max_depth=c(1,2,3,4,5,6),
+  colsample_bytree=c(0.2,0.4,0.6,0.8,1),
+  eta=0.3,
+  gamma=0,
+  min_child_weight=1
+)
+
+model <-  train(SalePrice ~ ., data = fo$train, method = modelName,trControl=train_control,tuneGrid=grid)
+# model.merged <-  train(SalePrice ~ ., data = df.merged,method = modelName,trControl=train_control)
+
+
+model$bestTune
+getTrainPerf(model)
+result <- predict(model, newdata = fo$forecast)
+fullPredictExp(fo = fo,caretModel  = model , modelFile = paste(c("outputs\\",modelName,"_",format(Sys.time(), "%Y%m%d%H%M%S"),".RData"),collapse = ""),forecastOutputFile = paste(c("outputs\\forecast_",modelName,"_",format(Sys.time(), "%Y%m%d%H%M%S"),".csv"),collapse = ""), fullOutputFile= paste(c("outputs\\full_",modelName,"_",format(Sys.time(), "%Y%m%d%H%M%S"),".csv"),collapse = ""))
+
+
+
 
 
 
