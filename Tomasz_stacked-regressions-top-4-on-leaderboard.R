@@ -41,7 +41,7 @@ impCustomPreparation <- function(fo){
   # df$Fireplaces <- as.factor(df$Fireplaces)
   df$GarageCars <- as.numeric(df$GarageCars)
   df$MoSold <-as.factor(df$MoSold)
-  df$MoSold <-as.factor(df$YrSold)
+  df$YrSold <-as.factor(df$YrSold)
   levels(df$MoSold) <- paste(rep("month",nrow(df)),levels(df$MoSold),sep="")
   levels(df$MoSold) <- paste(rep("year",nrow(df)),levels(df$YrSold),sep="")
   
@@ -251,7 +251,7 @@ impCustomPreparation <- function(fo){
   fo$description <- append(fo$description,"And then we made custom changes!")
   
   
-  fo$train <- fo$trainFull[exp(fo$trainFull$GrLivArea)>=4000 & exp(fo$trainFull$SalePrice)<=300000,]
+  fo$train <- fo$trainFull[(fo$trainFull$GrLivArea)<=4000 | exp(fo$trainFull$SalePrice)>=300000,]
   
   
   fo
@@ -286,8 +286,8 @@ diagnose(fo,minObs =5)
  # fo <- outNumericStdDev(fo,howManyDevsAway = 3,ignoredVariables = c("Id"),maxRemovedPercentage = 0.05)
  # diagnose(fo)
 
-fo <- traZbijacz(fo,minCount = 20)
-diagnose(fo,5)
+# fo <- traZbijacz(fo,minCount = 20)
+# diagnose(fo,5)
 
 
 
@@ -304,7 +304,7 @@ diagnose(fo)
 fo <- redRemoveZeroVar(fo)
 diagnose(fo,5)
 
-
+x<-nearZeroVar(fo$train, saveMetrics= TRUE)
 
 library(caret)
 
@@ -315,9 +315,9 @@ info <- getModelInfo(modelName)$lasso$grid
 
 
 
-train_control <- trainControl(method="repeatedcv", number=5, repeats=3,verboseIter = TRUE)
-# grid <- expand.grid(fraction=seq(0.005, 0.35, 0.0001))
-grid <- expand.grid(fraction=0.9995)
+train_control <- trainControl(method="none", number=1, repeats=100,verboseIter = TRUE)
+# grid <- expand.grid(fraction=seq(0.005, 0.35, 0.001))
+grid <- expand.grid(fraction=0.0005)
 
 
 model <-  train(SalePrice ~ ., data = fo$train, method = modelName,trControl=train_control,tuneGrid=grid)
@@ -338,9 +338,9 @@ info <- getModelInfo(modelName)$lasso$grid
 
 
 
-train_control <- trainControl(method="repeatedcv", number=5, repeats=3,verboseIter = TRUE)
+train_control <- trainControl(method="none", number=5, repeats=3,verboseIter = TRUE)
 grid <- expand.grid(fraction =  seq(0, 0.5, length = 6), lambda = seq(0, 100))
-# grid <- expand.grid(fraction=0.9995)
+grid <- expand.grid(fraction=0.9,lambda=0.0005)
 
 
 model <-  train(SalePrice ~ ., data = fo$train, method = modelName,trControl=train_control,tuneGrid=grid)
